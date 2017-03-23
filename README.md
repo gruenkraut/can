@@ -1,7 +1,7 @@
 # can
 Läuft auf keller01
 
-/lib/systemd/system/
+/lib/systemd/system/mqtt2can.service
 
 ```
 [Unit]
@@ -18,6 +18,8 @@ WantedBy=multi-user.target
 ```
 
 und
+
+/lib/systemd/system/can2mqtt.service
 ```
 [Unit]
 Description=can2mqtt
