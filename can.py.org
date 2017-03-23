@@ -1,0 +1,55 @@
+import mosquitto
+import socket
+import struct
+import sys
+
+# Achtung!
+# lauft nur mit python3
+# /opt/python3.4.1/bin/python3
+ 
+# CAN frame packing/unpacking (see `struct can_frame` in <linux/can.h>)
+can_frame_fmt = "=IB3x8s"
+ 
+def build_can_frame(can_id, data):
+        can_dlc = len(data)
+        data = data.ljust(8, b'\x00')
+        return struct.pack(can_frame_fmt, can_id, can_dlc, data)
+ 
+def dissect_can_frame(frame):
+        can_id, can_dlc, data = struct.unpack(can_frame_fmt, frame)
+        return (can_id, can_dlc, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7])
+ 
+if len(sys.argv) != 2:
+        print('Provide CAN device name (can0, slcan0 etc.)')
+        sys.exit(0)
+ 
+# create a raw socket and bind it to the given CAN interface
+s = socket.socket(socket.AF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
+s.bind((sys.argv[1],))
+
+client = mosquitto.Mosquitto("CAN_IN")
+client.connect("127.0.0.1")
+
+print('CAN-TO-MOSQUITTO Running...')
+
+while True:
+        cf, addr = s.recvfrom(16)
+ 
+        #print('Received: %08X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X' % dissect_can_frame(cf))
+        sIn='%08X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X' % dissect_can_frame(cf)
+        sInOld='#' + sIn[6:8] + sIn[4:6] + '0000' + sIn[8:] + ';'
+        client.publish("hsp/can_old/in",sInOld,1)
+        if sIn[1] != 'F':
+                client.publish("hsp/can/in",sIn,1)
+        client.loop()
+ 
+        try:
+                pass #s.send(cf)
+        except socket.error:
+                print('Error sending CAN frame')
+ 
+        try:
+                pass #s.send(build_can_frame(0x01, b'\x01\x02\x03'))
+        except socket.error:
+                print('Error sending CAN frame')
+
